@@ -1,11 +1,12 @@
 export interface VersionSummary { [agent: string]: [number, number][]}
 
-export type RawVersion = [agent: string, seq: number]
-/** Local version */
+/** Public Version (sharable with other peers) */
+export type PubVersion = [agent: string, seq: number]
 
+/** Local version. These values generally should never leave this local peer! */
 export type LV = number
-/** Local version range. Range is [start, end). */
 
+/** Local version range. Range is [start, end). */
 export type LVRange = [start: number, end: number]
 
 export type CGEntry = {

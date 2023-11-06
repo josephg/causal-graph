@@ -1,17 +1,17 @@
 // *** Tools to syncronize causal graphs ***
 
-import { addRawVersion, findEntryContaining, lvToRawList, nextLV, rawToLV, rawToLVList } from "./causal-graph.js"
+import { addPubVersion, findEntryContaining, lvListToPub, nextLV, pubToLV, pubListToLV } from "./causal-graph.js"
 import { advanceFrontier } from './utils.js'
 import { diff } from "./tools.js"
-import { CausalGraph, LV, LVRange, RawVersion } from "./types.js"
-import { min2, max2 } from './utils.js'
+import { CausalGraph, LV, LVRange, PubVersion } from "./types.js"
+import { min2 } from './utils.js'
 
 type PartialSerializedCGEntry = {
   agent: string,
   seq: number,
   len: number,
 
-  parents: RawVersion[]
+  parents: PubVersion[]
 }
 
 export type PartialSerializedCG = PartialSerializedCGEntry[]
@@ -28,8 +28,8 @@ export function serializeDiff(cg: CausalGraph, ranges: LVRange[]): PartialSerial
 
       const localEnd = min2(end, e.vEnd)
       const len = localEnd - start
-      const parents: RawVersion[] = offset === 0
-        ? lvToRawList(cg, e.parents)
+      const parents: PubVersion[] = offset === 0
+        ? lvListToPub(cg, e.parents)
         : [[e.agent, e.seq + offset - 1]]
 
       entries.push({
@@ -56,7 +56,7 @@ export function mergePartialVersions(cg: CausalGraph, data: PartialSerializedCG)
   const start = nextLV(cg)
 
   for (const {agent, seq, len, parents} of data) {
-    addRawVersion(cg, [agent, seq], len, parents)
+    addPubVersion(cg, [agent, seq], len, parents)
   }
   return [start, nextLV(cg)]
 }
@@ -65,7 +65,7 @@ export function *mergePartialVersions2(cg: CausalGraph, data: PartialSerializedC
   // const start = nextLV(cg)
 
   for (const {agent, seq, len, parents} of data) {
-    const newEntry = addRawVersion(cg, [agent, seq], len, parents)
+    const newEntry = addPubVersion(cg, [agent, seq], len, parents)
     if (newEntry != null) yield newEntry
   }
 
@@ -74,8 +74,8 @@ export function *mergePartialVersions2(cg: CausalGraph, data: PartialSerializedC
 
 export function advanceVersionFromSerialized(cg: CausalGraph, data: PartialSerializedCG, version: LV[]): LV[] {
   for (const {agent, seq, len, parents} of data) {
-    const parentLVs = rawToLVList(cg, parents)
-    const vLast = rawToLV(cg, agent, seq + len - 1)
+    const parentLVs = pubListToLV(cg, parents)
+    const vLast = pubToLV(cg, agent, seq + len - 1)
     version = advanceFrontier(version, vLast, parentLVs)
   }
 

@@ -11,7 +11,7 @@
 // on concurrency. (High concurrency = bad compression. Low concurrency = great compression).
 
 import bs from 'binary-search'
-import { LV, LVRange, RawVersion, VersionSummary } from './types.js'
+import { LV, LVRange, PubVersion, VersionSummary } from './types.js'
 import { CausalGraph, ClientEntry, CGEntry } from './types.js'
 import { diff, findDominators, versionContainsLV } from './tools.js'
 import { min2, max2 } from './utils.js'
@@ -109,7 +109,7 @@ const findClientEntryTrimmed = (cg: CausalGraph, agent: string, seq: number): Cl
   }
 }
 
-export const hasVersion = (cg: CausalGraph, agent: string, seq: number): boolean => (
+export const hasPubVersion = (cg: CausalGraph, agent: string, seq: number): boolean => (
   findClientEntryRaw(cg, agent, seq) != null
 )
 
@@ -124,9 +124,9 @@ export const hasVersion = (cg: CausalGraph, agent: string, seq: number): boolean
  * Returns the inserted CGEntry, or null if the span is already included in its entirity
  * in the causal graph.
  */
-export const addRawVersion = (cg: CausalGraph, id: RawVersion, len: number = 1, rawParents?: RawVersion[]): CGEntry | null => {
+export const addPubVersion = (cg: CausalGraph, id: PubVersion, len: number = 1, rawParents?: PubVersion[]): CGEntry | null => {
   const parents = rawParents != null
-    ? rawToLVList(cg, rawParents)
+    ? pubListToLV(cg, rawParents)
     : cg.heads
 
   return add(cg, id[0], id[1], id[1]+len, parents)
@@ -208,15 +208,15 @@ export const add = (cg: CausalGraph, agent: string, seqStart: number, seqEnd: nu
  * - 0 if the versions are equal
  * - Positive if v1 > v2
  */
-export const rawVersionCmp = ([a1, s1]: RawVersion, [a2, s2]: RawVersion) => (
+export const pubVersionCmp = ([a1, s1]: PubVersion, [a2, s2]: PubVersion) => (
   a1 < a2 ? -1
     : a1 > a2 ? 1
     : s1 - s2
 )
 
-/** Same as rawVersionCmp but versions are passed as LVs instead of RawVersions. */
+/** Same as pubVersionCmp but versions are passed as LVs instead of RawVersions. */
 export const lvCmp = (cg: CausalGraph, a: LV, b: LV) => (
-  rawVersionCmp(lvToRaw(cg, a), lvToRaw(cg, b))
+  pubVersionCmp(lvToPub(cg, a), lvToPub(cg, b))
 )
 
 export const rawFindEntryContaining = (cg: CausalGraph, v: LV): CGEntry => {
@@ -235,20 +235,20 @@ export const findEntryContaining = (cg: CausalGraph, v: LV): [CGEntry, number] =
   return [e, offset]
 }
 
-export const lvToRawWithParents = (cg: CausalGraph, v: LV): [string, number, LV[]] => {
+export const lvToPubWithParents = (cg: CausalGraph, v: LV): [string, number, LV[]] => {
   const [e, offset] = findEntryContaining(cg, v)
   const parents = offset === 0 ? e.parents : [v-1]
   return [e.agent, e.seq + offset, parents]
 }
 
-export const lvToRaw = (cg: CausalGraph, v: LV): RawVersion => {
+export const lvToPub = (cg: CausalGraph, v: LV): PubVersion => {
   const [e, offset] = findEntryContaining(cg, v)
   return [e.agent, e.seq + offset]
   // causalGraph.entries[localIndex]
 }
 
-export const lvToRawList = (cg: CausalGraph, parents: LV[] = cg.heads): RawVersion[] => (
-  parents.map(v => lvToRaw(cg, v))
+export const lvListToPub = (cg: CausalGraph, lvList: LV[] = cg.heads): PubVersion[] => (
+  lvList.map(v => lvToPub(cg, v))
 )
 
 
@@ -256,25 +256,30 @@ export const lvToRawList = (cg: CausalGraph, parents: LV[] = cg.heads): RawVersi
 //   localVersionToRaw(cg, v)[2]
 // )
 
-export const tryRawToLV = (cg: CausalGraph, agent: string, seq: number): LV | null => {
+export const tryPubToLV = (cg: CausalGraph, agent: string, seq: number): LV | null => {
   const clientEntry = findClientEntryTrimmed(cg, agent, seq)
   return clientEntry?.version ?? null
 }
-export const rawToLV = (cg: CausalGraph, agent: string, seq: number): LV => {
+export const pubToLV = (cg: CausalGraph, agent: string, seq: number): LV => {
   const clientEntry = findClientEntryTrimmed(cg, agent, seq)
   if (clientEntry == null) throw Error(`Unknown ID: (${agent}, ${seq})`)
   return clientEntry.version
 }
-export const rawToLV2 = (cg: CausalGraph, v: RawVersion): LV => (
-  rawToLV(cg, v[0], v[1])
+export const pubToLV2 = (cg: CausalGraph, v: PubVersion): LV => (
+  pubToLV(cg, v[0], v[1])
 )
 
-export const rawToLVList = (cg: CausalGraph, parents: RawVersion[]): LV[] => (
-  parents.map(([agent, seq]) => rawToLV(cg, agent, seq))
+export const pubListToLV = (cg: CausalGraph, parents: PubVersion[]): LV[] => (
+  parents.map(([agent, seq]) => pubToLV(cg, agent, seq))
 )
 
-//! Returns LV at start and end of the span.
-export const rawToLVSpan = (cg: CausalGraph, agent: string, seq: number): [LV, LV] => {
+/**
+ * Finds and returns the longest contiguous span of local versions which starts with
+ * the specified public version.
+ *
+ * Returns LV at start and end of the span.
+ */
+export const pubToLVSpan = (cg: CausalGraph, agent: string, seq: number): [LV, LV] => {
 // export const rawToLVSpan = (cg: CausalGraph, agent: string, seq: number): [LV, number] => {
   const e = findClientEntry(cg, agent, seq)
   if (e == null) throw Error(`Unknown ID: (${agent}, ${seq})`)
@@ -284,6 +289,10 @@ export const rawToLVSpan = (cg: CausalGraph, agent: string, seq: number): [LV, L
   // return [entry.version + offset, entry.seqEnd - entry.seq - offset] // [start, len].
 }
 
+/**
+ * Creates a VersionSummary (essentially a vector clock) of the versions known within this
+ * causal graph.
+ */
 export const summarizeVersion = (cg: CausalGraph): VersionSummary => {
   const result: VersionSummary = {}
   for (const k in cg.agentToVersion) {

@@ -2,7 +2,7 @@
 // *** TOOLS ***
 
 import PriorityQueue from "priorityqueuejs"
-import { lvToRaw, rawFindEntryContaining, rawVersionCmp } from "./causal-graph.js"
+import { lvToPub, rawFindEntryContaining, pubVersionCmp } from "./causal-graph.js"
 import { CausalGraph, LV, LVRange } from "./types.js"
 import { pushRLEList, tryRevRangeAppend } from "./rlelist.js"
 
@@ -26,10 +26,10 @@ export const tieBreakPairs = <T>(cg: CausalGraph, data: [LV, T][]): [LV, T] => {
   let winner = data.reduce((a, b) => {
     // Its a bit inefficient doing this lookup multiple times for the winning item,
     // but eh. The data set will almost always contain exactly 1 item anyway.
-    const rawA = lvToRaw(cg, a[0])
-    const rawB = lvToRaw(cg, b[0])
+    const rawA = lvToPub(cg, a[0])
+    const rawB = lvToPub(cg, b[0])
 
-    return rawVersionCmp(rawA, rawB) < 0 ? a : b
+    return pubVersionCmp(rawA, rawB) < 0 ? a : b
   })
 
   return winner
