@@ -3,7 +3,7 @@ import seedRandom from 'seed-random'
 import consoleLib from 'console'
 import { addPubVersion, createCG, lvListToPub, mergeLocalCG, pubVersionCmp } from '../src/causal-graph.js'
 import { CausalGraph, PubVersion } from '../src/types.js'
-import { checkCG } from '../src/check.js'
+import { checkCG } from './check.js'
 
 // This fuzzer will make 3 causal graphs, then randomly generate entries and
 // merge them into each other using the serialization methods.
