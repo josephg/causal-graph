@@ -1,0 +1,17 @@
+{
+  "name": "causality",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "devDependencies": {
+    "@types/node": "^20.8.10",
+    "@types/priorityqueuejs": "^1.0.3",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "binary-search": "^1.3.6",
+    "priorityqueuejs": "^2.0.0"
+  }
+}
