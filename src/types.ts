@@ -52,3 +52,27 @@ export interface CausalGraph {
   agentToVersion: { [k: string]: ClientEntry[]}
 }
 
+
+// RLE append for CGEntry and ClientEntry.
+export const tryAppendEntries = (a: CGEntry, b: CGEntry): boolean => {
+  const canAppend = b.version === a.vEnd
+    && a.agent === b.agent
+    && a.seq + (a.vEnd - a.version) === b.seq
+    && b.parents.length === 1 && b.parents[0] === a.vEnd - 1
+
+  if (canAppend) {
+    a.vEnd = b.vEnd
+  }
+
+  return canAppend
+}
+
+export const tryAppendClientEntry = (a: ClientEntry, b: ClientEntry): boolean => {
+  const canAppend = b.seq === a.seqEnd
+    && b.version === (a.version + (a.seqEnd - a.seq))
+
+  if (canAppend) {
+    a.seqEnd = b.seqEnd
+  }
+  return canAppend
+}

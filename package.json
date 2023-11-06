@@ -8,6 +8,8 @@
   "devDependencies": {
     "@types/node": "^20.8.10",
     "@types/priorityqueuejs": "^1.0.3",
+    "@types/seed-random": "^2.2.3",
+    "seed-random": "^2.2.0",
     "typescript": "^5.2.2"
   },
   "dependencies": {

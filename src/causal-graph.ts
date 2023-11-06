@@ -11,12 +11,11 @@
 // on concurrency. (High concurrency = bad compression. Low concurrency = great compression).
 
 import bs from 'binary-search'
-import { LV, LVRange, PubVersion, VersionSummary } from './types.js'
-import { CausalGraph, ClientEntry, CGEntry } from './types.js'
-import { diff, findDominators, versionContainsLV } from './tools.js'
-import { min2, max2 } from './utils.js'
-import { advanceFrontier } from './utils.js'
+import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEntry, tryAppendEntries, tryAppendClientEntry } from './types.js'
+import { diff, findDominators } from './tools.js'
+import { min2, max2, advanceFrontier } from './utils.js'
 import { insertRLEList, pushRLEList, tryRangeAppend } from './rlelist.js'
+import { mergePartialVersions, serializeDiff } from './serialization.js'
 
 export const createCG = (): CausalGraph => ({
   heads: [],
@@ -56,29 +55,6 @@ export const nextSeqForAgent = (cg: CausalGraph, agent: string): number => {
   return entries[entries.length - 1].seqEnd
 }
 
-const tryAppendEntries = (a: CGEntry, b: CGEntry): boolean => {
-  const canAppend = b.version === a.vEnd
-    && a.agent === b.agent
-    && a.seq + (a.vEnd - a.version) === b.seq
-    && b.parents.length === 1 && b.parents[0] === a.vEnd - 1
-
-  if (canAppend) {
-    a.vEnd = b.vEnd
-  }
-
-  return canAppend
-}
-
-const tryAppendClientEntry = (a: ClientEntry, b: ClientEntry): boolean => {
-  const canAppend = b.seq === a.seqEnd
-    && b.version === (a.version + (a.seqEnd - a.seq))
-
-  if (canAppend) {
-    a.seqEnd = b.seqEnd
-  }
-  return canAppend
-}
-
 const findClientEntryRaw = (cg: CausalGraph, agent: string, seq: number): ClientEntry | null => {
   const av = cg.agentToVersion[agent]
   if (av == null) return null
@@ -92,12 +68,12 @@ const findClientEntryRaw = (cg: CausalGraph, agent: string, seq: number): Client
   return result < 0 ? null : av[result]
 }
 
-const findClientEntry = (cg: CausalGraph, agent: string, seq: number): [ClientEntry, number] | null => {
+export const findClientEntry = (cg: CausalGraph, agent: string, seq: number): [ClientEntry, number] | null => {
   const clientEntry = findClientEntryRaw(cg, agent, seq)
   return clientEntry == null ? null : [clientEntry, seq - clientEntry.seq]
 }
 
-const findClientEntryTrimmed = (cg: CausalGraph, agent: string, seq: number): ClientEntry | null => {
+export const findClientEntryTrimmed = (cg: CausalGraph, agent: string, seq: number): ClientEntry | null => {
   const result = findClientEntry(cg, agent, seq)
   if (result == null) return null
 
@@ -490,14 +466,24 @@ export const intersectWithSummary = (cg: CausalGraph, summary: VersionSummary, v
   return [findDominators(cg, versions), remainder]
 }
 
+/**
+ * Merge any missing entries from the source causal graph.
+ *
+ * This is typically only useful in testing.
+ *
+ * @returns the list of LV ranges copied over from src.
+ */
+export function mergeLocalCG(dest: CausalGraph, src: CausalGraph): LVRange[] {
+  let vs = summarizeVersion(dest)
+  const [commonVersion, _remainder] = intersectWithSummary(src, vs)
+  // `remainder` lists items in dest that are not in src. Not relevant!
 
-export function checkCG(cg: CausalGraph) {
-  // There's a bunch of checks to put in here...
-  for (let i = 0; i < cg.entries.length; i++) {
-    const e = cg.entries[i]
-    if (e.vEnd <= e.version) throw Error('Inverted versions in entry')
-    // assert(e.vEnd > e.version)
-  }
+  // Now we need to get all the versions since commonVersion.
+  const ranges = diff(src, commonVersion, src.heads).bOnly
 
-  // TODO: Also check the entry sequence matches the mapping.
+  // Copy the missing CG entries.
+  const cgDiff = serializeDiff(src, ranges)
+  mergePartialVersions(dest, cgDiff)
+
+  return ranges
 }
