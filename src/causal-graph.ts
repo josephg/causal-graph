@@ -15,7 +15,7 @@ import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEn
 import { diff, findDominators } from './tools.js'
 import { min2, max2, advanceFrontier } from './utils.js'
 import { insertRLEList, pushRLEList, tryRangeAppend } from './rlelist.js'
-import { mergePartialVersions, serializeDiff } from './serialization.js'
+import { mergePartialVersions, mergePartialVersions3, serializeDiff, serializeDiff3 } from './serialization.js'
 
 export const createCG = (): CausalGraph => ({
   heads: [],
@@ -482,8 +482,14 @@ export function mergeLocalCG(dest: CausalGraph, src: CausalGraph): LVRange[] {
   const ranges = diff(src, commonVersion, src.heads).bOnly
 
   // Copy the missing CG entries.
-  const cgDiff = serializeDiff(src, ranges)
-  mergePartialVersions(dest, cgDiff)
+  // const oldDiff = serializeDiff(src, ranges)
+  // console.log('oldf', oldDiff)
+  // mergePartialVersions(dest, oldDiff)
+
+  const cgDiff = serializeDiff3(src, ranges)
+  mergePartialVersions3(dest, cgDiff)
+  // console.log('diff', cgDiff)
+  // console.log('head ->', lvListToPub(dest))
 
   return ranges
 }

@@ -1,15 +1,21 @@
 import assert from 'node:assert/strict'
 import seedRandom from 'seed-random'
 import consoleLib from 'console'
-import { addPubVersion, createCG, lvListToPub, mergeLocalCG, pubVersionCmp } from '../src/causal-graph.js'
+import { addPubVersion, createCG, lvListToPub, mergeLocalCG, nextLV, pubVersionCmp } from '../src/causal-graph.js'
 import { CausalGraph, PubVersion } from '../src/types.js'
 import { checkCG } from './check.js'
-import { fromSerialized, serialize } from '../src/serialization.js'
+import { fromSerialized, serialize, serializeDiff3 } from '../src/serialization.js'
 
 function checkSerializeRoundtrips(cg: CausalGraph) {
   const serialized = serialize(cg)
   const deserialized = fromSerialized(serialized)
   assert.deepEqual(deserialized, cg)
+
+  // The partial serialized snapshot looks identical to the simpler snapshot, but
+  // with external references.
+  const next = nextLV(cg)
+  const partialSerialized = serializeDiff3(cg, next > 0 ? [[0, next]] : [])
+  assert.deepEqual(partialSerialized.entries, serialized)
 }
 
 // This fuzzer will make 3 causal graphs, then randomly generate entries and
@@ -89,5 +95,5 @@ function fuzzLots() {
 }
 
 // fuzzer(Number(process.env['SEED']) ?? 0)
-// fuzzer(0)
+// fuzzer(5)
 fuzzLots()
