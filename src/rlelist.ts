@@ -1,6 +1,6 @@
 import bs from 'binary-search'
 // import { assert } from '../utils.js'
-import assert from 'node:assert/strict'
+// import assert from 'node:assert/strict'
 import { LVRange } from './types.js'
 
 export const pushRLEList = <T>(list: T[], newItem: T, tryAppend: (a: T, b: T) => boolean) => {
