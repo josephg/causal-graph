@@ -9,7 +9,13 @@ This project exposes a type (CausalGraph) which stores a run-length encoded DAG 
 
 The causal graph associates each ID with a local version number (autoincrementing integer) to make a lot of operations faster & easier.
 
-And the graph can be queried through a variety of tools:
+Install with:
+
+```
+$ npm install --save causal-graph
+```
+
+The graph can be queried through a variety of tools:
 
 - `versionContainsLV`: Figure out if a transitive subgraph contains a given version
 - `diff`: Find the difference in two subgraphs
