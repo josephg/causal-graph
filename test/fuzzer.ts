@@ -4,6 +4,13 @@ import consoleLib from 'console'
 import { addPubVersion, createCG, lvListToPub, mergeLocalCG, pubVersionCmp } from '../src/causal-graph.js'
 import { CausalGraph, PubVersion } from '../src/types.js'
 import { checkCG } from './check.js'
+import { fromSerialized, serialize } from '../src/serialization.js'
+
+function checkSerializeRoundtrips(cg: CausalGraph) {
+  const serialized = serialize(cg)
+  const deserialized = fromSerialized(serialized)
+  assert.deepEqual(deserialized, cg)
+}
 
 // This fuzzer will make 3 causal graphs, then randomly generate entries and
 // merge them into each other using the serialization methods.
@@ -37,6 +44,7 @@ function fuzzer(seed: number) {
       // console.log('d->', doc)
 
       // checkCG(doc) // EXPENSIVE
+      // checkSerializeRoundtrips(doc)
     }
 
     // Pick a random pair of documents and merge them
@@ -64,6 +72,8 @@ function fuzzer(seed: number) {
       checkCG(b)
     }
   }
+
+  for (const doc of docs) checkSerializeRoundtrips(doc)
 }
 
 function fuzzLots() {

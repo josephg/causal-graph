@@ -1,11 +1,11 @@
 // *** Tools to syncronize causal graphs ***
 
-import { addPubVersion, findEntryContaining, lvListToPub, nextLV, pubToLV, pubListToLV, clientEntriesForAgent } from "./causal-graph.js"
+import { addPubVersion, findEntryContaining, lvListToPub, nextLV, pubToLV, pubListToLV, clientEntriesForAgent, createCG } from "./causal-graph.js"
 import { advanceFrontier } from './utils.js'
 import { diff } from "./tools.js"
 import { CausalGraph, LV, LVRange, PubVersion, tryAppendClientEntry } from "./types.js"
 import { min2 } from './utils.js'
-import { pushRLEList } from "./rlelist.js"
+import { insertRLEList, pushRLEList } from "./rlelist.js"
 
 // *** Serializing the entire causal graph. When serializing the entire thing, we can save local
 // versions because the order will be identical on the remote (recieving) end.
@@ -15,44 +15,62 @@ import { pushRLEList } from "./rlelist.js"
 
 // This is identical to CGEntry, but reproduced to pin it.
 type SerializedCGEntryV2 = {
-  version: LV, // TODO: Remove version here - this is redundant.
-  vEnd: LV,
-
+  // version: LV, // TODO: Remove version here - this is redundant.
+  // vEnd: LV,
+  
   agent: string,
   seq: number, // Seq for version.
-
+  len: number,
+  
   parents: LV[] // Parents for version
 }
 
-export interface SerializedCausalGraphV1 {
-  /** TODO: Should probably just recompute the heads on load */
-  heads: LV[],
-  entries: SerializedCGEntryV2[],
+export type SerializedCausalGraphV2 = SerializedCGEntryV2[]
+
+// export interface SerializedCausalGraphV2 {
+//   /** TODO: Should probably just recompute the heads on load */
+//   heads: LV[],
+//   entries: SerializedCGEntryV2[],
+// }
+
+
+export function serialize(cg: CausalGraph): SerializedCausalGraphV2 {
+  return cg.entries.map(e => ({
+    agent: e.agent,
+    seq: e.seq,
+    len: e.vEnd - e.version,
+    parents: e.parents,
+  }))
 }
 
+export function fromSerialized(data: SerializedCausalGraphV2): CausalGraph {
+  const result = createCG()
 
-export function serialize(cg: CausalGraph): SerializedCausalGraphV1 {
-  return {
-    heads: cg.heads,
-    entries: cg.entries,
+  let v = 0
+  for (const e of data) {
+    result.entries.push({
+      agent: e.agent,
+      seq: e.seq,
+      version: v,
+      vEnd: v + e.len,
+      parents: e.parents,
+    })
+    
+    insertRLEList(clientEntriesForAgent(result, e.agent), {
+        seq: e.seq,
+        seqEnd: e.seq + e.len,
+        version: v
+      },
+      e => e.seq,
+      tryAppendClientEntry
+    )
+
+    result.heads = advanceFrontier(result.heads, v + e.len - 1, e.parents)
+
+    v += e.len
   }
-}
 
-export function fromSerialized(data: SerializedCausalGraphV1): CausalGraph {
-  const cg: CausalGraph = {
-    heads: data.heads,
-    entries: data.entries,
-    agentToVersion: {}
-  }
-
-  for (const e of cg.entries) {
-    const len = e.vEnd - e.version
-    pushRLEList(clientEntriesForAgent(cg, e.agent), {
-      seq: e.seq, seqEnd: e.seq + len, version: e.version
-    }, tryAppendClientEntry)
-  }
-
-  return cg
+  return result
 }
 
 
@@ -134,3 +152,14 @@ export function advanceVersionFromSerialized(cg: CausalGraph, data: PartialSeria
   // NOTE: Callers might need to call findDominators on the result.
   return version
 }
+
+
+
+// interface SerializedPartialV3 {
+//   extRef: PubVersion[],
+//   agent: string,
+//   seq: number,
+//   len: number,
+
+//   parents: number[]
+// }
