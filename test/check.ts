@@ -1,7 +1,7 @@
-import { findClientEntryTrimmed, findEntryContaining } from "./causal-graph.js"
-import { CausalGraph, LV, tryAppendClientEntry, tryAppendEntries } from "./types.js"
+import { findClientEntryTrimmed, findEntryContaining } from "../src/causal-graph.js"
+import { CausalGraph, LV, tryAppendClientEntry, tryAppendEntries } from "../src/types.js"
 import assert from 'node:assert/strict'
-import { advanceFrontier } from "./utils.js"
+import { advanceFrontier } from "../src/utils.js"
 
 /**
  * This function checks the the internal invariants of the causal graph all
