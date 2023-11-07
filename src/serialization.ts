@@ -1,6 +1,6 @@
 // *** Tools to syncronize causal graphs ***
 
-import { addPubVersion, findEntryContaining, lvListToPub, nextLV, pubToLV, pubListToLV, clientEntriesForAgent, createCG, lvToPub, pubToLV2 } from "./causal-graph.js"
+import { addPubVersion, findEntryContaining, lvListToPub, nextLV, pubToLV, pubListToLV, clientEntriesForAgent, createCG, lvToPub, pubToLV2, add } from "./causal-graph.js"
 import { advanceFrontier } from './utils.js'
 import { diff } from "./tools.js"
 import { CGEntry, CausalGraph, LV, LVRange, PubVersion, tryAppendClientEntry } from "./types.js"
@@ -228,8 +228,8 @@ export function serializeFromVersion3(cg: CausalGraph, v: LV[]): PartialSerializ
   return serializeDiff3(cg, ranges)
 }
 
-export function diffOffsetToPubVersion(offset: number, data: PartialSerializedV3, entryOffsets: number[]): PubVersion {
-  if (offset < 0) return data.extRef[-offset-1]
+export function diffOffsetToLV(offset: number, data: PartialSerializedV3, entryOffsets: number[], inCg: CausalGraph): LV {
+  if (offset < 0) return pubToLV2(inCg, data.extRef[-offset-1])
   else {
     // Find the version in the data we've already extracted.
     const idx = binarySearch(entryOffsets, offset, (offset, needle, index) => {
@@ -240,7 +240,7 @@ export function diffOffsetToPubVersion(offset: number, data: PartialSerializedV3
     // console.log('i', idx, offsetOfEntry, p, data.entries)
     if (idx < 0) throw Error('Could not find parent item')
     const e = data.entries[idx]
-    return [e.agent, e.seq + offset - entryOffsets[idx]]
+    return pubToLV(inCg, e.agent, e.seq + offset - entryOffsets[idx])
   }
 }
 
@@ -255,11 +255,11 @@ export function *mergePartialVersionsIter3(cg: CausalGraph, data: PartialSeriali
     // The parents are specified using simple integers. 0+ means a version relative
     // to the versions within this snapshot. Negative means we look up the pub version
     // in refs.
-    const localParents: PubVersion[] = parents.map(p => diffOffsetToPubVersion(p, data, entryOffsets))
+    const localParents: LV[] = parents.map(p => diffOffsetToLV(p, data, entryOffsets, cg))
 
     // console.log('addPubVersion', [agent, seq], len, localParents, parents, data.extRef)
     // console.log('addPubVersion', [agent, seq], 'len', len, 'parents', localParents)
-    const newEntry = addPubVersion(cg, [agent, seq], len, localParents)
+    const newEntry = add(cg, agent, seq, len, localParents)
     if (newEntry != null) yield newEntry
 
     entryOffsets.push(offset)
@@ -289,7 +289,7 @@ export function advanceVersionFromSerialized3(cg: CausalGraph, data: PartialSeri
   })
 
   for (const {agent, seq, len, parents} of data.entries) {
-    const parentLVs = parents.map(p => pubToLV2(cg, diffOffsetToPubVersion(p, data, entryOffsets)))
+    const parentLVs = parents.map(p => diffOffsetToLV(p, data, entryOffsets, cg))
     // const parentLVs = pubListToLV(cg, parents)
     const vLast = pubToLV(cg, agent, seq + len - 1)
     version = advanceFrontier(version, vLast, parentLVs)
