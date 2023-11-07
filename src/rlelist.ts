@@ -1,4 +1,4 @@
-import bs from 'binary-search'
+import bs from './binary-search.js'
 // import { assert } from '../utils.js'
 // import assert from 'node:assert/strict'
 import { LVRange } from './types.js'

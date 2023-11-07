@@ -6,7 +6,7 @@ import { diff } from "./tools.js"
 import { CGEntry, CausalGraph, LV, LVRange, PubVersion, tryAppendClientEntry } from "./types.js"
 import { min2 } from './utils.js'
 import { insertRLEList, pushRLEList } from "./rlelist.js"
-import binarySearch from "binary-search"
+import binarySearch from './binary-search.js'
 
 // *** Serializing the entire causal graph. When serializing the entire thing, we can save local
 // versions because the order will be identical on the remote (recieving) end.
@@ -74,24 +74,31 @@ export function fromSerialized(data: SerializedCausalGraphV2): CausalGraph {
   return result
 }
 
+export function genOffsets(entries: {len: number}[]): number[] {
+  let o = 0
+  const offsets: number[] = []
+  for (const e of entries) {
+    offsets.push(o)
+    o += e.len
+  }
+  return offsets
+}
 
-// Parial Serialization. This is a simpler serialization format for deltas.
-
+// Parial Serialization. This is a simple serialization format for deltas.
 export type PartialSerializedCGEntry = {
   agent: string,
   seq: number,
   len: number,
-
   parents: PubVersion[]
 }
 
-export type PartialSerializedCG = PartialSerializedCGEntry[]
+export type PartialSerializedV2 = PartialSerializedCGEntry[]
 
 /**
  * The entries returned from this function are in the order of versions
  * specified in ranges.
  */
-export function serializeDiff(cg: CausalGraph, ranges: LVRange[]): PartialSerializedCG {
+export function serializeDiff(cg: CausalGraph, ranges: LVRange[]): PartialSerializedV2 {
   const entries: PartialSerializedCGEntry[] = []
   for (let [start, end] of ranges) {
     while (start != end) {
@@ -118,12 +125,12 @@ export function serializeDiff(cg: CausalGraph, ranges: LVRange[]): PartialSerial
 }
 
 //! The entries returned from this function are always in causal order.
-export function serializeFromVersion(cg: CausalGraph, v: LV[]): PartialSerializedCG {
+export function serializeFromVersion(cg: CausalGraph, v: LV[]): PartialSerializedV2 {
   const ranges = diff(cg, v, cg.heads).bOnly
   return serializeDiff(cg, ranges)
 }
 
-export function mergePartialVersions(cg: CausalGraph, data: PartialSerializedCG): LVRange {
+export function mergePartialVersions(cg: CausalGraph, data: PartialSerializedV2): LVRange {
   const start = nextLV(cg)
 
   for (const {agent, seq, len, parents} of data) {
@@ -132,7 +139,7 @@ export function mergePartialVersions(cg: CausalGraph, data: PartialSerializedCG)
   return [start, nextLV(cg)]
 }
 
-export function *mergePartialVersionsIter(cg: CausalGraph, data: PartialSerializedCG): Generator<CGEntry> {
+export function *mergePartialVersionsIter(cg: CausalGraph, data: PartialSerializedV2): Generator<CGEntry> {
   // const start = nextLV(cg)
 
   for (const {agent, seq, len, parents} of data) {
@@ -143,7 +150,7 @@ export function *mergePartialVersionsIter(cg: CausalGraph, data: PartialSerializ
   // return [start, nextLV(cg)]
 }
 
-export function advanceVersionFromSerialized(cg: CausalGraph, data: PartialSerializedCG, version: LV[]): LV[] {
+export function advanceVersionFromSerialized(cg: CausalGraph, data: PartialSerializedV2, version: LV[]): LV[] {
   for (const {agent, seq, len, parents} of data) {
     const parentLVs = pubListToLV(cg, parents)
     const vLast = pubToLV(cg, agent, seq + len - 1)
@@ -154,6 +161,18 @@ export function advanceVersionFromSerialized(cg: CausalGraph, data: PartialSeria
   return version
 }
 
+export function diffOffsetToLV2(offset: number, data: PartialSerializedV2, entryOffsets: number[], inCg: CausalGraph): LV {
+  // Find the version in the data we've already extracted.
+  const idx = binarySearch(entryOffsets, offset, (offset, needle, index) => {
+    const len = data[index!].len
+    return needle < offset ? 1 : needle >= offset + len ? -1 : 0
+  })
+
+  // console.log('i', idx, offsetOfEntry, p, data.entries)
+  if (idx < 0) throw Error('Could not find parent item')
+  const e = data[idx]
+  return pubToLV(inCg, e.agent, e.seq + offset - entryOffsets[idx])
+}
 
 /**
  * This is a newer API for serializing diffs. There are two nice things about this format:
@@ -161,6 +180,8 @@ export function advanceVersionFromSerialized(cg: CausalGraph, data: PartialSeria
  * 1. This format stores the same data, in the same data format when doing snapshots of
  *    the entire causal graph. (When snapshotting a full graph, extRef is empty).
  * 2. The format is much more compact than the simpler partial serialization format above.
+ *
+ * But I don't know if the extra complexity is worth using generally.
  */
 export interface PartialSerializedV3 {
   extRef: PubVersion[],
@@ -228,7 +249,7 @@ export function serializeFromVersion3(cg: CausalGraph, v: LV[]): PartialSerializ
   return serializeDiff3(cg, ranges)
 }
 
-export function diffOffsetToLV(offset: number, data: PartialSerializedV3, entryOffsets: number[], inCg: CausalGraph): LV {
+export function diffOffsetToLV3(offset: number, data: PartialSerializedV3, entryOffsets: number[], inCg: CausalGraph): LV {
   if (offset < 0) return pubToLV2(inCg, data.extRef[-offset-1])
   else {
     // Find the version in the data we've already extracted.
@@ -244,16 +265,6 @@ export function diffOffsetToLV(offset: number, data: PartialSerializedV3, entryO
   }
 }
 
-// function genOffsets(data: {len: number}[]): number[] {
-//   let offset = 0
-//   const entryOffsets: number[] = []
-//   for (const e of data) {
-//     entryOffsets.push(offset)
-//     offset += e.len
-//   }
-//   return entryOffsets
-// }
-
 export function *mergePartialVersionsIter3(cg: CausalGraph, data: PartialSerializedV3): Generator<CGEntry, number[]> {
   // const start = nextLV(cg)
 
@@ -265,7 +276,7 @@ export function *mergePartialVersionsIter3(cg: CausalGraph, data: PartialSeriali
     // The parents are specified using simple integers. 0+ means a version relative
     // to the versions within this snapshot. Negative means we look up the pub version
     // in refs.
-    const localParents: LV[] = parents.map(p => diffOffsetToLV(p, data, entryOffsets, cg))
+    const localParents: LV[] = parents.map(p => diffOffsetToLV3(p, data, entryOffsets, cg))
 
     // console.log('addPubVersion', [agent, seq], len, localParents, parents, data.extRef)
     // console.log('addPubVersion', [agent, seq], 'len', len, 'parents', localParents)
@@ -299,7 +310,7 @@ export function advanceVersionFromSerialized3(cg: CausalGraph, data: PartialSeri
   }
 
   for (const {agent, seq, len, parents} of data.entries) {
-    const parentLVs = parents.map(p => diffOffsetToLV(p, data, entryOffsets, cg))
+    const parentLVs = parents.map(p => diffOffsetToLV3(p, data, entryOffsets, cg))
     // const parentLVs = pubListToLV(cg, parents)
     const vLast = pubToLV(cg, agent, seq + len - 1)
     version = advanceFrontier(version, vLast, parentLVs)

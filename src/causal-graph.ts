@@ -10,7 +10,7 @@
 // The versions are is stored in runs, and run-length encoded. Compression depends
 // on concurrency. (High concurrency = bad compression. Low concurrency = great compression).
 
-import bs from 'binary-search'
+import bs from './binary-search.js'
 import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEntry, tryAppendEntries, tryAppendClientEntry } from './types.js'
 import { diff, findDominators } from './tools.js'
 import { min2, max2, advanceFrontier } from './utils.js'
