@@ -244,6 +244,16 @@ export function diffOffsetToLV(offset: number, data: PartialSerializedV3, entryO
   }
 }
 
+// function genOffsets(data: {len: number}[]): number[] {
+//   let offset = 0
+//   const entryOffsets: number[] = []
+//   for (const e of data) {
+//     entryOffsets.push(offset)
+//     offset += e.len
+//   }
+//   return entryOffsets
+// }
+
 export function *mergePartialVersionsIter3(cg: CausalGraph, data: PartialSerializedV3): Generator<CGEntry, number[]> {
   // const start = nextLV(cg)
 
@@ -282,11 +292,11 @@ export function mergePartialVersions3(cg: CausalGraph, data: PartialSerializedV3
 export function advanceVersionFromSerialized3(cg: CausalGraph, data: PartialSerializedV3, version: LV[]): LV[] {
   // Gross.
   let offset = 0
-  const entryOffsets = data.entries.map(e => {
-    const o = offset
+  const entryOffsets: number[] = []
+  for (const e of data.entries) {
+    entryOffsets.push(offset)
     offset += e.len
-    return o
-  })
+  }
 
   for (const {agent, seq, len, parents} of data.entries) {
     const parentLVs = parents.map(p => diffOffsetToLV(p, data, entryOffsets, cg))
