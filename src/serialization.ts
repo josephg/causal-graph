@@ -163,10 +163,11 @@ export function advanceVersionFromSerialized(cg: CausalGraph, data: PartialSeria
 
 export function diffOffsetToLV2(offset: number, data: PartialSerializedV2, entryOffsets: number[], inCg: CausalGraph): LV {
   // Find the version in the data we've already extracted.
-  const idx = binarySearch(entryOffsets, offset, (offset, needle, index) => {
-    const len = data[index!].len
-    return needle < offset ? 1 : needle >= offset + len ? -1 : 0
-  })
+  const idx = binarySearch(entryOffsets, offset, (offset, needle, index) => (
+    needle < offset ? 1
+    : needle >= offset + data[index].len ? -1
+    : 0
+  ))
 
   // console.log('i', idx, offsetOfEntry, p, data.entries)
   if (idx < 0) throw Error('Could not find parent item')
@@ -253,10 +254,11 @@ export function diffOffsetToLV3(offset: number, data: PartialSerializedV3, entry
   if (offset < 0) return pubToLV2(inCg, data.extRef[-offset-1])
   else {
     // Find the version in the data we've already extracted.
-    const idx = binarySearch(entryOffsets, offset, (offset, needle, index) => {
-      const len = data.entries[index!].len
-      return needle < offset ? 1 : needle >= offset + len ? -1 : 0
-    })
+    const idx = binarySearch(entryOffsets, offset, (offset, needle, index) => (
+      needle < offset ? 1
+        : needle >= offset + data.entries[index!].len ? -1
+        : 0
+    ))
 
     // console.log('i', idx, offsetOfEntry, p, data.entries)
     if (idx < 0) throw Error('Could not find parent item')
