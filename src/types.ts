@@ -52,27 +52,119 @@ export interface CausalGraph {
   agentToVersion: { [k: string]: ClientEntry[]}
 }
 
-
-// RLE append for CGEntry and ClientEntry.
-export const tryAppendEntries = (a: CGEntry, b: CGEntry): boolean => {
-  const canAppend = b.version === a.vEnd
-    && a.agent === b.agent
-    && a.seq + (a.vEnd - a.version) === b.seq
-    && b.parents.length === 1 && b.parents[0] === a.vEnd - 1
-
-  if (canAppend) {
-    a.vEnd = b.vEnd
-  }
-
-  return canAppend
+export interface CommonMethods<T> {
+  len(item: T): number,
+  cloneItem?(item: T): T,
 }
 
-export const tryAppendClientEntry = (a: ClientEntry, b: ClientEntry): boolean => {
-  const canAppend = b.seq === a.seqEnd
-    && b.version === (a.version + (a.seqEnd - a.seq))
+export interface MergeMethods<T> extends CommonMethods<T> {
+  // canAppend(into: T, from: T): boolean,
+  // append(into: T, from: T): void,
 
-  if (canAppend) {
-    a.seqEnd = b.seqEnd
-  }
-  return canAppend
+  /**
+   * Try and append from to the end of to. Returns true if
+   * this is successful. False if not. If this method returns
+   * false, the items must not be modified.
+   */
+  tryAppend(to: T, from: T): boolean,
+
+  // tryPrepend as an optimization.
 }
+
+export interface SplitMethods<T> extends CommonMethods<T> {
+  /**
+   * Offset must be between 1 and item len -1. The item is truncated
+   * in-place and the remainder is returned.
+   */
+  truncate(item: T, offset: number): T,
+  // split?(item: T, offset: number): [T, T],
+}
+
+export interface Keyed<T> extends CommonMethods<T> {
+  getKey?(item: T): number,
+}
+
+export type AllRLEMethods<T> = MergeMethods<T> & SplitMethods<T> & Keyed<T>
+
+
+
+
+
+export const cgEntryRLE: AllRLEMethods<CGEntry> = {
+  len(item) { return item.vEnd - item.version },
+  tryAppend(a, b) {
+    if (b.version === a.vEnd
+      && a.agent === b.agent
+      && a.seq + (a.vEnd - a.version) === b.seq
+      && b.parents.length === 1 && b.parents[0] === a.vEnd - 1
+    ) {
+      a.vEnd = b.vEnd
+      return true
+    } else {
+      return false
+    }
+  },
+  getKey(item) { return item.version },
+  truncate(item, offset) {
+    if (offset < 1) throw Error('Invalid offset')
+    const remainder: CGEntry = {
+      version: item.version + offset,
+      vEnd: item.vEnd,
+      agent: item.agent,
+      seq: item.seq + offset,
+      parents: [item.version + offset - 1]
+    }
+    item.vEnd = item.version + offset
+    return remainder
+  },
+}
+
+export const clientEntryRLE: AllRLEMethods<ClientEntry> = {
+  len(item) { return item.seqEnd - item.seq },
+  tryAppend(a, b) {
+    const canAppend = b.seq === a.seqEnd
+      && b.version === (a.version + (a.seqEnd - a.seq))
+
+    if (canAppend) {
+      a.seqEnd = b.seqEnd
+    }
+    return canAppend
+  },
+  getKey(item) {
+    return item.seq
+  },
+  truncate(item, offset) {
+    const remainder: ClientEntry = {
+      seq: item.seq + offset,
+      seqEnd: item.seqEnd,
+      version: item.version + offset
+    }
+    item.seqEnd = item.seq + offset
+    return remainder
+  },
+}
+
+
+// // RLE append for CGEntry and ClientEntry.
+// export const tryAppendEntries = (a: CGEntry, b: CGEntry): boolean => {
+//   const canAppend = b.version === a.vEnd
+//     && a.agent === b.agent
+//     && a.seq + (a.vEnd - a.version) === b.seq
+//     && b.parents.length === 1 && b.parents[0] === a.vEnd - 1
+
+//   if (canAppend) {
+//     a.vEnd = b.vEnd
+//   }
+
+//   return canAppend
+// }
+
+// export const tryAppendClientEntry = (a: ClientEntry, b: ClientEntry): boolean => {
+//   const canAppend = b.seq === a.seqEnd
+//     && b.version === (a.version + (a.seqEnd - a.seq))
+
+//   if (canAppend) {
+//     a.seqEnd = b.seqEnd
+//   }
+//   return canAppend
+// }

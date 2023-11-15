@@ -11,11 +11,11 @@
 // on concurrency. (High concurrency = bad compression. Low concurrency = great compression).
 
 import bs from './binary-search.js'
-import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEntry, tryAppendEntries, tryAppendClientEntry } from './types.js'
+import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEntry, cgEntryRLE, clientEntryRLE } from './types.js'
 import { diff, findDominators } from './tools.js'
 import { min2, max2, advanceFrontier } from './utils.js'
-import { insertRLEList, pushRLEList, tryRangeAppend } from './rlelist.js'
-import { mergePartialVersions, mergePartialVersions3, serializeDiff, serializeDiff3 } from './serialization.js'
+import { rangeRLE, rleInsert, rlePush } from './rlelist.js'
+import { mergePartialVersions3, serializeDiff3 } from './serialization.js'
 
 export const createCG = (): CausalGraph => ({
   heads: [],
@@ -147,14 +147,13 @@ export const add = (cg: CausalGraph, agent: string, seqStart: number, seqEnd: nu
   }
 
   // The entry list will remain ordered here in standard version order.
-  pushRLEList(cg.entries, entry, tryAppendEntries)
+  rlePush(cg.entries, cgEntryRLE, entry)
   // But the agent entries may end up out of order, since we might get [b,0] before [b,1] if
   // the same agent modifies two different branches. Hence, insertRLEList instead of pushRLEList.
-  insertRLEList(
+  rleInsert(
     clientEntriesForAgent(cg, agent),
+    clientEntryRLE,
     { seq: seqStart, seqEnd, version },
-    e => e.seq,
-    tryAppendClientEntry
   )
 
   cg.heads = advanceFrontier(cg.heads, vEnd - 1, parents)
@@ -277,7 +276,7 @@ export const summarizeVersion = (cg: CausalGraph): VersionSummary => {
 
     const versions: [number, number][] = []
     for (const ce of av) {
-      pushRLEList(versions, [ce.seq, ce.seqEnd], tryRangeAppend)
+      rlePush(versions, rangeRLE, [ce.seq, ce.seqEnd])
     }
 
     result[k] = versions

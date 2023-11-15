@@ -21,3 +21,11 @@ export const advanceFrontier = (frontier: LV[], vLast: LV, parents: LV[]): LV[] 
 
 export const sortVersions = (v: LV[]): LV[] => v.sort((a, b) => a - b)
 
+// ** A couple utility methods **
+export function assert(expr: boolean, msg?: string) {
+  if (!expr) throw Error(msg != null ? `Assertion failed: ${msg}` : 'Assertion failed')
+}
+
+export function assertEq<T>(a: T, b: T, msg?: string) {
+  if (a !== b) throw Error(`Assertion failed: ${a} !== ${b} ${msg ?? ''}`)
+}

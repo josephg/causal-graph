@@ -1,5 +1,5 @@
 import { findClientEntryTrimmed, findEntryContaining } from "../src/causal-graph.js"
-import { CausalGraph, LV, tryAppendClientEntry, tryAppendEntries } from "../src/types.js"
+import { CausalGraph, LV, MergeMethods, cgEntryRLE, clientEntryRLE } from "../src/types.js"
 import assert from 'node:assert/strict'
 import { advanceFrontier } from "../src/utils.js"
 
@@ -80,18 +80,18 @@ export function checkCG(cg: CausalGraph) {
     }
   }
 
-  const assertRLEPacked = <T extends Record<string, any>>(entries: T[], tryAppend: (a: T, b: T) => boolean) => {
+  const assertRLEPacked = <T extends Record<string, any>>(entries: T[], m: MergeMethods<T>) => {
     for (let i = 1; i < entries.length; i++) {
       // Clone the entry so we don't modify the causal graph in the process.
       let prev: T = {...entries[i - 1]}
       // tryAppend should return false every time.
-      assert.equal(tryAppend(prev, entries[i]), false)
+      assert.equal(m.tryAppend(prev, entries[i]), false)
     }
   }
 
   // Check everything is maximally RLE.
-  assertRLEPacked(cg.entries, tryAppendEntries)
+  assertRLEPacked(cg.entries, cgEntryRLE)
   for (const agent in cg.agentToVersion) {
-    assertRLEPacked(cg.agentToVersion[agent], tryAppendClientEntry)
+    assertRLEPacked(cg.agentToVersion[agent], clientEntryRLE)
   }
 }

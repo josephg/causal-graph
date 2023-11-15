@@ -3,9 +3,9 @@
 import { addPubVersion, findEntryContaining, lvListToPub, nextLV, pubToLV, pubListToLV, clientEntriesForAgent, createCG, lvToPub, pubToLV2, add } from "./causal-graph.js"
 import { advanceFrontier } from './utils.js'
 import { diff } from "./tools.js"
-import { CGEntry, CausalGraph, LV, LVRange, PubVersion, tryAppendClientEntry } from "./types.js"
+import { CGEntry, CausalGraph, LV, LVRange, PubVersion, clientEntryRLE } from "./types.js"
 import { min2 } from './utils.js'
-import { insertRLEList, pushRLEList } from "./rlelist.js"
+import { rleInsert } from "./rlelist.js"
 import binarySearch from './binary-search.js'
 
 // *** Serializing the entire causal graph. When serializing the entire thing, we can save local
@@ -56,14 +56,15 @@ export function fromSerialized(data: SerializedCausalGraphV2): CausalGraph {
       vEnd: v + e.len,
       parents: e.parents,
     })
-    
-    insertRLEList(clientEntriesForAgent(result, e.agent), {
+
+    rleInsert(
+      clientEntriesForAgent(result, e.agent),
+      clientEntryRLE,
+      {
         seq: e.seq,
         seqEnd: e.seq + e.len,
         version: v
-      },
-      e => e.seq,
-      tryAppendClientEntry
+      }
     )
 
     result.heads = advanceFrontier(result.heads, v + e.len - 1, e.parents)

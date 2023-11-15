@@ -4,7 +4,7 @@
 import PriorityQueue from "priorityqueuejs"
 import { lvToPub, rawFindEntryContaining, pubVersionCmp } from "./causal-graph.js"
 import { CausalGraph, LV, LVRange } from "./types.js"
-import { pushRLEList, tryRevRangeAppend } from "./rlelist.js"
+import { revRangeRLE, rlePush } from "./rlelist.js"
 
 // export const tieBreakVersions = (cg: CausalGraph, data: LV[]): LV => {
 //   if (data.length === 0) throw Error('Cannot tie break from an empty set')
@@ -42,7 +42,7 @@ type DiffResult = {
 }
 
 const pushReversedRLE = (list: LVRange[], start: LV, end: LV) => {
-  pushRLEList(list, [start, end] as [number, number], tryRevRangeAppend)
+  rlePush(list, revRangeRLE, [start, end] as LVRange)
 }
 
 
