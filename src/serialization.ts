@@ -263,6 +263,7 @@ export function diffOffsetToLV3(offset: number, data: PartialSerializedV3, entry
     // console.log('i', idx, offsetOfEntry, p, data.entries)
     if (idx < 0) throw Error('Could not find parent item')
     const e = data.entries[idx]
+    // console.log('pubToLV', e.agent, e.seq + offset - entryOffsets[idx])
     return pubToLV(inCg, e.agent, e.seq + offset - entryOffsets[idx])
   }
 }
@@ -275,6 +276,8 @@ export function *mergePartialVersionsIter3(cg: CausalGraph, data: PartialSeriali
   const entryOffsets: number[] = []
 
   for (const {agent, seq, len, parents} of data.entries) {
+    // console.log('entry', {agent, seq, len, parents})
+
     // The parents are specified using simple integers. 0+ means a version relative
     // to the versions within this snapshot. Negative means we look up the pub version
     // in refs.
@@ -282,7 +285,7 @@ export function *mergePartialVersionsIter3(cg: CausalGraph, data: PartialSeriali
 
     // console.log('addPubVersion', [agent, seq], len, localParents, parents, data.extRef)
     // console.log('addPubVersion', [agent, seq], 'len', len, 'parents', localParents)
-    const newEntry = add(cg, agent, seq, len, localParents)
+    const newEntry = add(cg, agent, seq, seq + len, localParents)
     if (newEntry != null) yield newEntry
 
     entryOffsets.push(offset)
