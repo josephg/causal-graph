@@ -74,9 +74,10 @@ export interface MergeMethods<T> extends CommonMethods<T> {
 export interface SplitMethods<T> extends CommonMethods<T> {
   /**
    * Offset must be between 1 and item len -1. The item is truncated
-   * in-place and the remainder is returned.
+   * in-place.
    */
-  truncate(item: T, offset: number): T,
+  truncateKeepingLeft(item: T, offset: number): void,
+  truncateKeepingRight(item: T, offset: number): void,
   // split?(item: T, offset: number): [T, T],
 }
 
@@ -107,18 +108,15 @@ export const cgEntryRLE: AllRLEMethods<CGEntry> = {
       return false
     }
   },
-  truncate(item, offset) {
-    if (offset < 1) throw Error('Invalid offset')
-    const remainder: CGEntry = {
-      version: item.version + offset,
-      vEnd: item.vEnd,
-      agent: item.agent,
-      seq: item.seq + offset,
-      parents: [item.version + offset - 1]
-    }
+  truncateKeepingLeft(item, offset) {
     item.vEnd = item.version + offset
-    return remainder
   },
+  truncateKeepingRight(item, offset) {
+    if (offset < 1) throw Error('Invalid offset')
+    item.version += offset
+    item.seq += offset
+    item.parents = [item.version - 1]
+  }
 }
 
 export const clientEntryRLE: AllRLEMethods<ClientEntry> = {
@@ -134,15 +132,13 @@ export const clientEntryRLE: AllRLEMethods<ClientEntry> = {
     }
     return canAppend
   },
-  truncate(item, offset) {
-    const remainder: ClientEntry = {
-      seq: item.seq + offset,
-      seqEnd: item.seqEnd,
-      version: item.version + offset
-    }
+  truncateKeepingLeft(item, offset) {
     item.seqEnd = item.seq + offset
-    return remainder
   },
+  truncateKeepingRight(item, offset) {
+    item.seq += offset
+    item.version += offset
+  }
 }
 
 

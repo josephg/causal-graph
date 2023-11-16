@@ -12,18 +12,21 @@ export function testRLEMethods<T>(entry: T, m: AllRLEMethods<T>) {
   for (let i = 1; i < len; i++) {
       // Split here and make sure we get the expected results.
       let start = cloneItem(entry, m)
-      let end = m.truncate(start, i)
+      m.truncateKeepingLeft(start, i)
+
+      let end = cloneItem(entry, m)
+      m.truncateKeepingRight(end, i)
+
       // dbg!(&start, &end)
 
       assert.equal(itemLen(start, m), i)
       assert.equal(itemLen(end, m), len - i)
 
-      // dbg!(&start, &end)
-      const merge_append = cloneItem(start, m)
-      assert(m.tryAppend(merge_append, end))
+      const merged = cloneItem(start, m)
+      // console.log(start, end, merged)
+      assert(m.tryAppend(merged, end))
 
-      // dbg!(&merge_append)
-      assert.deepEqual(merge_append, entry)
+      assert.deepEqual(merged, entry)
 
       // let mut merge_prepend = end.clone()
       // merge_prepend.prepend(start.clone())

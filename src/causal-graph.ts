@@ -14,7 +14,7 @@
 import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEntry, cgEntryRLE, clientEntryRLE } from './types.js'
 import { diff, findDominators } from './tools.js'
 import { min2, max2, advanceFrontier } from './utils.js'
-import { rangeRLE, rleFindOpt, rleFindEntryOpt, rleInsert, rlePush, rleFindEntry, rleFind, rleIterRangeRaw, rleIterRange } from './rlelist.js'
+import { rangeRLE, rleFindEntryOpt, rleInsert, rlePush, rleFindEntry, rleFind, rleIterRangeRaw, rleIterRange } from './rlelist.js'
 import { mergePartialVersions3, serializeDiff3 } from './serialization.js'
 
 export const createCG = (): CausalGraph => ({

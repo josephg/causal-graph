@@ -121,17 +121,21 @@ export function *rleIterRangeRaw<T>(list: T[], m: Keyed<T>, startKey: number, en
 
 export function *rleIterRange<T>(list: T[], m: SplitMethods<T> & Keyed<T>, startKey: number, endKey: number): Generator<T> {
   for (let item of rleIterRangeRaw(list, m, startKey, endKey)) {
-    const itemStart = m.keyStart(item)
+    let itemStart = m.keyStart(item)
+    let cloned = false
     if (itemStart < startKey) {
       // Trim the item.
-      item = m.truncate(cloneItem(item, m), startKey - itemStart)
+      cloned = true
+      item = cloneItem(item, m)
+      m.truncateKeepingRight(item, startKey - itemStart)
+      itemStart = startKey
     }
 
     const itemEnd = m.keyEnd(item)
     if (itemEnd > endKey) {
       // Trim the item from the right.
-      item = cloneItem(item, m)
-      m.truncate(item, endKey - itemStart)
+      if (!cloned) item = cloneItem(item, m) // avoid double-cloning.
+      m.truncateKeepingLeft(item, endKey - itemStart)
     }
 
     yield item
@@ -184,14 +188,8 @@ export const simpleRLESpanMethods: MergeMethods<SimpleRLESpan<any>> & SplitMetho
       return true
     } else return false
   },
-  truncate(item, offset) {
-    const trimmedLength = item.length - offset
-    item.length = offset
-    return {
-      val: item.val,
-      length: trimmedLength
-    }
-  },
+  truncateKeepingLeft(item, offset) { item.length = offset },
+  truncateKeepingRight(item, offset) { item.length -= offset },
 }
 
 export type SimpleKeyedRLESpan<T> = { key: number } & SimpleRLESpan<T>
@@ -206,15 +204,21 @@ export const simpleKeyedSpanMethods: AllRLEMethods<SimpleKeyedRLESpan<any>> = {
       return true
     } else return false
   },
-  truncate(item, offset) {
-    const trimmedLength = item.length - offset
-    item.length = offset
-    return {
-      val: item.val,
-      key: item.key + offset,
-      length: trimmedLength,
-    }
+  truncateKeepingLeft(item, offset) { item.length = offset },
+  truncateKeepingRight(item, offset) {
+    item.length -= offset
+    item.key += offset
   },
+
+  // truncate(item, offset) {
+  //   const trimmedLength = item.length - offset
+  //   item.length = offset
+  //   return {
+  //     val: item.val,
+  //     key: item.key + offset,
+  //     length: trimmedLength,
+  //   }
+  // },
 }
 
 
