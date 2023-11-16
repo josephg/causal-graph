@@ -92,7 +92,7 @@ export const itemLen = <T>(item: T, m: Keyed<T>): number => (
 )
 
 /** Iterate (and yield) all the items which intersect the half-open range from [startKey..endKey) */
-export function *rleIterRangeRaw<T>(list: T[], m: Keyed<T>, startKey: number, endKey: number) {
+export function *rleIterRangeRaw<T>(list: T[], m: Keyed<T>, startKey: number, endKey: number): Generator<T> {
   if (startKey === endKey) return
 
   // let idx = bs(list, startKey, (entry, needle) => {
@@ -119,7 +119,7 @@ export function *rleIterRangeRaw<T>(list: T[], m: Keyed<T>, startKey: number, en
   }
 }
 
-export function *rleIterRange<T>(list: T[], m: SplitMethods<T> & Keyed<T>, startKey: number, endKey: number) {
+export function *rleIterRange<T>(list: T[], m: SplitMethods<T> & Keyed<T>, startKey: number, endKey: number): Generator<T> {
   for (let item of rleIterRangeRaw(list, m, startKey, endKey)) {
     const itemStart = m.keyStart(item)
     if (itemStart < startKey) {
