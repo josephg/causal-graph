@@ -66,7 +66,7 @@ export interface MergeMethods<T> extends CommonMethods<T> {
    * this is successful. False if not. If this method returns
    * false, the items must not be modified.
    */
-  tryAppend(to: T, from: T): boolean,
+  tryAppend(a: T, b: T): boolean,
 
   // tryPrepend as an optimization.
 }

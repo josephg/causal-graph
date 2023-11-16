@@ -10,5 +10,6 @@ export * from './utils.js'
 export * from './causal-graph.js'
 export * from './tools.js'
 export * from './serialization.js'
+export * as rle from './rlelist.js'
 
 export {default as binarySearch} from './binary-search.js'
