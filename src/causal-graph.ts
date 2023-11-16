@@ -14,7 +14,7 @@ import bs from './binary-search.js'
 import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEntry, cgEntryRLE, clientEntryRLE } from './types.js'
 import { diff, findDominators } from './tools.js'
 import { min2, max2, advanceFrontier } from './utils.js'
-import { rangeRLE, rleInsert, rlePush } from './rlelist.js'
+import { rangeRLE, rleFindOpt, rleFindEntryOpt, rleInsert, rlePush, rleFindEntry, rleFind } from './rlelist.js'
 import { mergePartialVersions3, serializeDiff3 } from './serialization.js'
 
 export const createCG = (): CausalGraph => ({
@@ -62,25 +62,22 @@ const findClientEntryRaw = (cg: CausalGraph, agent: string, seq: number): Client
   const av = cg.agentToVersion[agent]
   if (av == null) return null
 
-  const result = bs(av, seq, (entry, needle) => (
-    needle < entry.seq ? 1
-      : needle >= entry.seqEnd ? -1
-      : 0
-  ))
-
-  return result < 0 ? null : av[result]
+  return rleFindEntryOpt(av, clientEntryRLE, seq)
 }
 
 export const findClientEntry = (cg: CausalGraph, agent: string, seq: number): [ClientEntry, number] | null => {
   const clientEntry = findClientEntryRaw(cg, agent, seq)
   return clientEntry == null ? null : [clientEntry, seq - clientEntry.seq]
+
+  // Equivalent to:
+  // rleFindEntry(av, clientEntryRLE, seq)
 }
 
 export const findClientEntryTrimmed = (cg: CausalGraph, agent: string, seq: number): ClientEntry | null => {
-  const result = findClientEntry(cg, agent, seq)
-  if (result == null) return null
+  const clientEntry = findClientEntryRaw(cg, agent, seq)
+  if (clientEntry == null) return null
 
-  const [clientEntry, offset] = result
+  const offset = seq - clientEntry.seq // Not using findClientEntry to avoid an allocation.
   return offset === 0 ? clientEntry : {
     seq,
     seqEnd: clientEntry.seqEnd,
@@ -198,19 +195,21 @@ export const lvCmp = (cg: CausalGraph, a: LV, b: LV) => (
 )
 
 export const rawFindEntryContaining = (cg: CausalGraph, v: LV): CGEntry => {
-  const idx = bs(cg.entries, v, (entry, needle) => (
-    needle < entry.version ? 1
-    : needle >= entry.vEnd ? -1
-    : 0
-  ))
-  if (idx < 0) throw Error('Invalid or unknown local version ' + v)
-  return cg.entries[idx]
+  return rleFindEntry(cg.entries, cgEntryRLE, v)
+  // const idx = bs(cg.entries, v, (entry, needle) => (
+  //   needle < entry.version ? 1
+  //   : needle >= entry.vEnd ? -1
+  //   : 0
+  // ))
+  // if (idx < 0) throw Error('Invalid or unknown local version ' + v)
+  // return cg.entries[idx]
 }
 
 export const findEntryContaining = (cg: CausalGraph, v: LV): [CGEntry, number] => {
-  const e = rawFindEntryContaining(cg, v)
-  const offset = v - e.version
-  return [e, offset]
+  return rleFind(cg.entries, cgEntryRLE, v)
+  // const e = rawFindEntryContaining(cg, v)
+  // const offset = v - e.version
+  // return [e, offset]
 }
 
 export const lvToPubWithParents = (cg: CausalGraph, v: LV): [string, number, LV[]] => {
@@ -235,6 +234,7 @@ export const lvListToPub = (cg: CausalGraph, lvList: LV[] = cg.heads): PubVersio
 // )
 
 export const tryPubToLV = (cg: CausalGraph, agent: string, seq: number): LV | null => {
+  // This is pretty inefficient.
   const clientEntry = findClientEntryTrimmed(cg, agent, seq)
   return clientEntry?.version ?? null
 }

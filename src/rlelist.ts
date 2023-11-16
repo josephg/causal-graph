@@ -25,10 +25,34 @@ export function rleFindIdxRaw<T>(list: T[], m: Keyed<T>, needle: number): number
   ))
 }
 
-export function rleFindEntryRaw<T>(list: T[], m: Keyed<T>, needle: number): T | null {
+export function rleFindEntryOpt<T>(list: T[], m: Keyed<T>, needle: number): T | null {
   const idx = rleFindIdxRaw(list, m, needle)
   return idx < 0 ? null : list[idx]
 }
+
+export function rleFindEntry<T>(list: T[], m: Keyed<T>, needle: number): T {
+  const idx = rleFindIdxRaw(list, m, needle)
+  if (idx < 0) throw Error('Item missing from RLE list: ' + needle)
+  return list[idx]
+}
+
+/** Finds and returns an entry, and the offset into that entry. Returns null if item is missing. */
+export function rleFindOpt<T>(list: T[], m: Keyed<T>, needle: number): [T, number] | null {
+  const entry = rleFindEntryOpt(list, m, needle)
+  return entry == null ? null : [entry, needle - m.keyStart(entry)]
+}
+
+/** Finds and returns an entry, and the offset into that entry. Throws if item is missing. */
+export function rleFind<T>(list: T[], m: Keyed<T>, needle: number): [T, number] {
+  const entry = rleFindEntry(list, m, needle)
+  return [entry, needle - m.keyStart(entry)]
+}
+
+// export function rleFindEntry<T>(list: T[], m: Keyed<T>, needle: number): T {
+//   const idx = rleFindIdxRaw(list, m, needle)
+//   if (result == null) throw Error('Item missing from RLE list: ' + needle)
+//   return result
+// }
 
 /** Insert the new item in its corresponding location in the list */
 export function rleInsert<T>(list: T[], m: MergeMethods<T> & Keyed<T>, newItem: T) {
@@ -67,8 +91,8 @@ export const itemLen = <T>(item: T, m: Keyed<T>): number => (
   m.keyEnd(item) - m.keyStart(item)
 )
 
-/** Iterate (and yield) the items in the half-open range from [startKey..endKey) */
-export function *rleIterRange<T>(list: T[], m: SplitMethods<T> & Keyed<T>, startKey: number, endKey: number) {
+/** Iterate (and yield) all the items which intersect the half-open range from [startKey..endKey) */
+export function *rleIterRangeRaw<T>(list: T[], m: Keyed<T>, startKey: number, endKey: number) {
   if (startKey === endKey) return
 
   // let idx = bs(list, startKey, (entry, needle) => {
@@ -91,13 +115,22 @@ export function *rleIterRange<T>(list: T[], m: SplitMethods<T> & Keyed<T>, start
     // Just a check - the item must overlap with the start-end range.
     assert(itemEnd > startKey)
 
+    yield item
+  }
+}
+
+export function *rleIterRange<T>(list: T[], m: SplitMethods<T> & Keyed<T>, startKey: number, endKey: number) {
+  for (let item of rleIterRangeRaw(list, m, startKey, endKey)) {
+    const itemStart = m.keyStart(item)
     if (itemStart < startKey) {
       // Trim the item.
       item = m.truncate(cloneItem(item, m), startKey - itemStart)
     }
 
+    const itemEnd = m.keyEnd(item)
     if (itemEnd > endKey) {
-      item = cloneItem(item, m) // Might double-clone. Eh.
+      // Trim the item from the right.
+      item = cloneItem(item, m)
       m.truncate(item, endKey - itemStart)
     }
 
