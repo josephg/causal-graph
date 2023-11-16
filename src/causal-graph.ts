@@ -37,7 +37,9 @@ export const clientEntriesForAgent = (causalGraph: CausalGraph, agent: string): 
  * Semantically, this is equivalent in many ways to a "length" function.
  */
 export const nextLV = (cg: CausalGraph): LV => (
-  cg.entries.length === 0 ? 0 : cg.entries[cg.entries.length - 1].vEnd
+  cg.entries.length === 0
+    ? 0
+    : cg.entries[cg.entries.length - 1].vEnd
 )
 // export const nextLV = (cg: CausalGraph): LV => (
 //   lastOr(cg.entries, e => e.vEnd, 0)
@@ -51,8 +53,9 @@ export const nextLV = (cg: CausalGraph): LV => (
  */
 export const nextSeqForAgent = (cg: CausalGraph, agent: string): number => {
   const entries = cg.agentToVersion[agent]
-  if (entries == null) return 0
-  return entries[entries.length - 1].seqEnd
+  return entries == null
+    ? 0
+    : entries[entries.length - 1].seqEnd
 }
 
 const findClientEntryRaw = (cg: CausalGraph, agent: string, seq: number): ClientEntry | null => {

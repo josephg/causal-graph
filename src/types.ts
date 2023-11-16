@@ -53,7 +53,7 @@ export interface CausalGraph {
 }
 
 export interface CommonMethods<T> {
-  len(item: T): number,
+  len?(item: T): number,
   cloneItem?(item: T): T,
 }
 
@@ -81,7 +81,8 @@ export interface SplitMethods<T> extends CommonMethods<T> {
 }
 
 export interface Keyed<T> extends CommonMethods<T> {
-  getKey?(item: T): number,
+  keyStart(item: T): number,
+  keyEnd(item: T): number,
 }
 
 export type AllRLEMethods<T> = MergeMethods<T> & SplitMethods<T> & Keyed<T>
@@ -91,7 +92,9 @@ export type AllRLEMethods<T> = MergeMethods<T> & SplitMethods<T> & Keyed<T>
 
 
 export const cgEntryRLE: AllRLEMethods<CGEntry> = {
-  len(item) { return item.vEnd - item.version },
+  // len(item) { return item.vEnd - item.version },
+  keyStart: e => e.version,
+  keyEnd: e => e.vEnd,
   tryAppend(a, b) {
     if (b.version === a.vEnd
       && a.agent === b.agent
@@ -104,7 +107,6 @@ export const cgEntryRLE: AllRLEMethods<CGEntry> = {
       return false
     }
   },
-  getKey(item) { return item.version },
   truncate(item, offset) {
     if (offset < 1) throw Error('Invalid offset')
     const remainder: CGEntry = {
@@ -120,7 +122,9 @@ export const cgEntryRLE: AllRLEMethods<CGEntry> = {
 }
 
 export const clientEntryRLE: AllRLEMethods<ClientEntry> = {
-  len(item) { return item.seqEnd - item.seq },
+  // len(item) { return item.seqEnd - item.seq },
+  keyStart: e => e.seq,
+  keyEnd: e => e.seqEnd,
   tryAppend(a, b) {
     const canAppend = b.seq === a.seqEnd
       && b.version === (a.version + (a.seqEnd - a.seq))
@@ -129,9 +133,6 @@ export const clientEntryRLE: AllRLEMethods<ClientEntry> = {
       a.seqEnd = b.seqEnd
     }
     return canAppend
-  },
-  getKey(item) {
-    return item.seq
   },
   truncate(item, offset) {
     const remainder: ClientEntry = {
