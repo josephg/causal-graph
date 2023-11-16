@@ -18,6 +18,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "priorityqueuejs": "^2.0.0"
+    "priorityqueuejs": "^2.0.0",
+    "rle-utils": "^0.1.0"
   }
 }

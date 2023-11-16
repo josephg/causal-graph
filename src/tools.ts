@@ -3,8 +3,8 @@
 
 import PriorityQueue from "priorityqueuejs"
 import { lvToPub, rawFindEntryContaining, pubVersionCmp } from "./causal-graph.js"
-import { CausalGraph, LV, LVRange } from "./types.js"
-import { revRangeRLE, rlePush } from "./rlelist.js"
+import { CausalGraph, LV, LVRange, revRangeRLE } from "./types.js"
+import { rlePush } from "rle-utils"
 
 // export const tieBreakVersions = (cg: CausalGraph, data: LV[]): LV => {
 //   if (data.length === 0) throw Error('Cannot tie break from an empty set')

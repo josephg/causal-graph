@@ -1,7 +1,8 @@
 import { findClientEntryTrimmed, findEntryContaining } from "../src/causal-graph.js"
-import { CausalGraph, LV, MergeMethods, cgEntryRLE, clientEntryRLE } from "../src/types.js"
+import { CausalGraph, LV, cgEntryRLE, clientEntryRLE } from "../src/types.js"
 import assert from 'node:assert/strict'
 import { advanceFrontier } from "../src/utils.js"
+import { assertRLEPacked } from 'rle-utils/testhelpers'
 
 /**
  * This function checks the the internal invariants of the causal graph all
@@ -77,15 +78,6 @@ export function checkCG(cg: CausalGraph) {
         v = entry.vEnd
         seq += entry.vEnd - entry.version
       }
-    }
-  }
-
-  const assertRLEPacked = <T extends Record<string, any>>(entries: T[], m: MergeMethods<T>) => {
-    for (let i = 1; i < entries.length; i++) {
-      // Clone the entry so we don't modify the causal graph in the process.
-      let prev: T = {...entries[i - 1]}
-      // tryAppend should return false every time.
-      assert.equal(m.tryAppend(prev, entries[i]), false)
     }
   }
 

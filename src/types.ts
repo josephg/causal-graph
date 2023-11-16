@@ -1,3 +1,5 @@
+import { AllRLEMethods, MergeMethods } from "rle-utils"
+
 export interface VersionSummary { [agent: string]: [number, number][]}
 
 /** Public Version (sharable with other peers) */
@@ -52,44 +54,31 @@ export interface CausalGraph {
   agentToVersion: { [k: string]: ClientEntry[]}
 }
 
-export interface CommonMethods<T> {
-  len?(item: T): number,
-  cloneItem?(item: T): T,
+
+
+
+// RLE methods for LVRange. TODO: Consider moving these somewhere else.
+
+export const rangeRLE: MergeMethods<LVRange> = {
+  // len: (item) => item[1] - item[0],
+
+  tryAppend(r1, r2) {
+    if (r1[1] === r2[0]) {
+      r1[1] = r2[1]
+      return true
+    } else return false
+  },
 }
 
-export interface MergeMethods<T> extends CommonMethods<T> {
-  // canAppend(into: T, from: T): boolean,
-  // append(into: T, from: T): void,
-
-  /**
-   * Try and append from to the end of to. Returns true if
-   * this is successful. False if not. If this method returns
-   * false, the items must not be modified.
-   */
-  tryAppend(a: T, b: T): boolean,
-
-  // tryPrepend as an optimization.
+export const revRangeRLE: MergeMethods<LVRange> = {
+  // len: (item) => item[1] - item[0],
+  tryAppend(r1, r2) {
+    if (r1[0] === r2[1]) {
+      r1[0] = r2[0]
+      return true
+    } else return false
+  },
 }
-
-export interface SplitMethods<T> extends CommonMethods<T> {
-  /**
-   * Offset must be between 1 and item len -1. The item is truncated
-   * in-place.
-   */
-  truncateKeepingLeft(item: T, offset: number): void,
-  truncateKeepingRight(item: T, offset: number): void,
-  // split?(item: T, offset: number): [T, T],
-}
-
-export interface Keyed<T> extends CommonMethods<T> {
-  keyStart(item: T): number,
-  keyEnd(item: T): number,
-}
-
-export type AllRLEMethods<T> = MergeMethods<T> & SplitMethods<T> & Keyed<T>
-
-
-
 
 
 export const cgEntryRLE: AllRLEMethods<CGEntry> = {

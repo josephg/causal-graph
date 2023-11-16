@@ -11,10 +11,10 @@
 // on concurrency. (High concurrency = bad compression. Low concurrency = great compression).
 
 // import bs from './binary-search.js'
-import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEntry, cgEntryRLE, clientEntryRLE } from './types.js'
+import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEntry, cgEntryRLE, clientEntryRLE, rangeRLE } from './types.js'
 import { diff, findDominators } from './tools.js'
 import { min2, max2, advanceFrontier } from './utils.js'
-import { rangeRLE, rleFindEntryOpt, rleInsert, rlePush, rleFindEntry, rleFind, rleIterRangeRaw, rleIterRange } from './rlelist.js'
+import { rleFindEntryOpt, rleInsert, rlePush, rleFindEntry, rleFind, rleIterRangeRaw, rleIterRange } from 'rle-utils'
 import { mergePartialVersions3, serializeDiff3 } from './serialization.js'
 
 export const createCG = (): CausalGraph => ({

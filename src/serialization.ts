@@ -5,8 +5,8 @@ import { advanceFrontier } from './utils.js'
 import { diff } from "./tools.js"
 import { CGEntry, CausalGraph, LV, LVRange, PubVersion, clientEntryRLE } from "./types.js"
 import { min2 } from './utils.js'
-import { rleInsert } from "./rlelist.js"
-import binarySearch from './binary-search.js'
+import { rleInsert, binarySearch } from "rle-utils"
+// import binarySearch from './binary-search.js'
 
 // *** Serializing the entire causal graph. When serializing the entire thing, we can save local
 // versions because the order will be identical on the remote (recieving) end.
