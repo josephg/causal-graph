@@ -284,7 +284,7 @@ const eachVersionBetween = (cg: CausalGraph, vStart: LV, vEnd: LV, visit: (e: CG
 }
 
 // Same as above, but as a generator. And generating a new CGEntry when we yield.
-export function *iterVersionsBetween(cg: CausalGraph, vStart: LV, vEnd: LV): Generator<CGEntry> {
+export function iterVersionsBetween(cg: CausalGraph, vStart: LV, vEnd: LV): Generator<CGEntry> {
   return rleIterRange(cg.entries, cgEntryRLE, vStart, vEnd)
 }
 

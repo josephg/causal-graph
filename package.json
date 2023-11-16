@@ -1,8 +1,10 @@
 {
   "name": "causal-graph",
   "version": "0.1.0",
-  "main": "dist/src/index.js",
-  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": "./dist/src/index.js",
+    "./check": "./dist/src/check.js"
+  },
   "files": [
     "dist/*",
     "src/*"

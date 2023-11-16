@@ -1,7 +1,14 @@
-import { findClientEntryTrimmed, findEntryContaining } from "../src/causal-graph.js"
-import { CausalGraph, LV, cgEntryRLE } from "../src/types.js"
+// This file contains a deep check function which makes sure nothing is wrong
+// in the causal graph.
+//
+// This should only be used for testing.
+//
+// Import it with import {...} from 'causal-graph/check'
+
+import { findClientEntryTrimmed, findEntryContaining } from "./causal-graph.js"
+import { CausalGraph, LV, cgEntryRLE } from "./types.js"
 import assert from 'node:assert/strict'
-import { advanceFrontier } from "../src/utils.js"
+import { advanceFrontier } from "./utils.js"
 import { assertRLEPacked } from 'rle-utils/testhelpers'
 import { indexedMapRLE } from "rle-utils"
 
