@@ -10,11 +10,11 @@
 // The versions are is stored in runs, and run-length encoded. Compression depends
 // on concurrency. (High concurrency = bad compression. Low concurrency = great compression).
 
-import bs from './binary-search.js'
+// import bs from './binary-search.js'
 import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEntry, cgEntryRLE, clientEntryRLE } from './types.js'
 import { diff, findDominators } from './tools.js'
 import { min2, max2, advanceFrontier } from './utils.js'
-import { rangeRLE, rleFindOpt, rleFindEntryOpt, rleInsert, rlePush, rleFindEntry, rleFind } from './rlelist.js'
+import { rangeRLE, rleFindOpt, rleFindEntryOpt, rleInsert, rlePush, rleFindEntry, rleFind, rleIterRangeRaw, rleIterRange } from './rlelist.js'
 import { mergePartialVersions3, serializeDiff3 } from './serialization.js'
 
 export const createCG = (): CausalGraph => ({
@@ -288,59 +288,64 @@ export const summarizeVersion = (cg: CausalGraph): VersionSummary => {
 }
 
 const eachVersionBetween = (cg: CausalGraph, vStart: LV, vEnd: LV, visit: (e: CGEntry, vs: number, ve: number) => void) => {
-  let idx = bs(cg.entries, vStart, (entry, needle) => (
-    needle < entry.version ? 1
-    : needle >= entry.vEnd ? -1
-    : 0
-  ))
-  if (idx < 0) throw Error('Invalid or missing version: ' + vStart)
+  // let idx = bs(cg.entries, vStart, (entry, needle) => (
+  //   needle < entry.version ? 1
+  //   : needle >= entry.vEnd ? -1
+  //   : 0
+  // ))
+  // if (idx < 0) throw Error('Invalid or missing version: ' + vStart)
 
-  for (; idx < cg.entries.length; idx++) {
-    const entry = cg.entries[idx]
-    if (entry.version >= vEnd) break
+  // for (; idx < cg.entries.length; idx++) {
+  //   const entry = cg.entries[idx]
+  //   if (entry.version >= vEnd) break
 
-    // const offset = max2(vStart - entry.version, 0)
+  //   // const offset = max2(vStart - entry.version, 0)
+  //   visit(entry, max2(vStart, entry.version), min2(vEnd, entry.vEnd))
+  // }
+
+  for (const entry of rleIterRangeRaw(cg.entries, cgEntryRLE, vStart, vEnd)) {
     visit(entry, max2(vStart, entry.version), min2(vEnd, entry.vEnd))
   }
 }
 
 // Same as above, but as a generator. And generating a new CGEntry when we yield.
 export function *iterVersionsBetween(cg: CausalGraph, vStart: LV, vEnd: LV): Generator<CGEntry> {
-  if (vStart === vEnd) return
+  return rleIterRange(cg.entries, cgEntryRLE, vStart, vEnd)
+  // if (vStart === vEnd) return
 
-  let idx = bs(cg.entries, vStart, (entry, needle) => (
-    needle < entry.version ? 1
-    : needle >= entry.vEnd ? -1
-    : 0
-  ))
-  // console.log('cg', cg.entries, vStart, vEnd)
-  if (idx < 0) throw Error('Invalid or missing version: ' + vStart)
+  // let idx = bs(cg.entries, vStart, (entry, needle) => (
+  //   needle < entry.version ? 1
+  //   : needle >= entry.vEnd ? -1
+  //   : 0
+  // ))
+  // // console.log('cg', cg.entries, vStart, vEnd)
+  // if (idx < 0) throw Error('Invalid or missing version: ' + vStart)
 
-  for (; idx < cg.entries.length; idx++) {
-    const entry = cg.entries[idx]
-    if (entry.version >= vEnd) break
+  // for (; idx < cg.entries.length; idx++) {
+  //   const entry = cg.entries[idx]
+  //   if (entry.version >= vEnd) break
 
-    if (vStart <= entry.version && vEnd >= entry.vEnd) {
+  //   if (vStart <= entry.version && vEnd >= entry.vEnd) {
 
-      if (entry.version === entry.vEnd) throw Error('Invalid state')
+  //     if (entry.version === entry.vEnd) throw Error('Invalid state')
 
-      yield entry // Keep the entire entry.
-    } else {
-      // Slice the entry by vStart / vEnd.
-      const vLocalStart = max2(vStart, entry.version)
-      const vLocalEnd = min2(vEnd, entry.vEnd)
+  //     yield entry // Keep the entire entry.
+  //   } else {
+  //     // Slice the entry by vStart / vEnd.
+  //     const vLocalStart = max2(vStart, entry.version)
+  //     const vLocalEnd = min2(vEnd, entry.vEnd)
 
-      if (vLocalStart === vLocalEnd) throw Error('Invalid state')
+  //     if (vLocalStart === vLocalEnd) throw Error('Invalid state')
 
-      yield {
-        version: vLocalStart,
-        vEnd: vLocalEnd,
-        agent: entry.agent,
-        seq: entry.seq + (vLocalStart - entry.version),
-        parents: vLocalStart === entry.version ? entry.parents : [vLocalStart - 1],
-      }
-    }
-  }
+  //     yield {
+  //       version: vLocalStart,
+  //       vEnd: vLocalEnd,
+  //       agent: entry.agent,
+  //       seq: entry.seq + (vLocalStart - entry.version),
+  //       parents: vLocalStart === entry.version ? entry.parents : [vLocalStart - 1],
+  //     }
+  //   }
+  // }
 }
 // interface VisitEntry {
 //   entry: CGEntry,
@@ -394,19 +399,7 @@ const intersectWithSummaryFull = (cg: CausalGraph, summary: VersionSummary, visi
       // entries.
 
       if (clientEntries != null) { // Else no intersection here.
-        let idx = bs(clientEntries, startSeq, (entry, needle) => (
-          needle < entry.seq ? 1
-            : needle >= entry.seqEnd ? -1
-            : 0
-        ))
-
-        // If startSeq isn't found, start at the next entry.
-        if (idx < 0) idx = -idx - 1
-
-        for (; idx < clientEntries.length; idx++) {
-          const ce = clientEntries[idx]
-          if (ce.seq >= endSeq) break
-
+        for (const ce of rleIterRangeRaw(clientEntries, clientEntryRLE, startSeq, endSeq)) {
           if (ce.seq > startSeq) {
             visit(agent, startSeq, ce.seq, -1)
             startSeq = ce.seq
