@@ -1,4 +1,4 @@
-import { AllRLEMethods, MergeMethods } from "rle-utils"
+import { AllRLEMethods, IndexedMap, MergeMethods } from "rle-utils"
 
 export interface VersionSummary { [agent: string]: [number, number][]}
 
@@ -21,12 +21,12 @@ export type CGEntry = {
   parents: LV[] // Parents for version
 }
 
-export type ClientEntry = {
-  seq: number
-  seqEnd: number
-  /** LV of the first item in this run */
-  version: LV
-}
+// export type ClientEntry = {
+//   keyStart: number
+//   keyEnd: number
+//   /** LV of the first item in this run */
+//   val: LV
+// }
 
 /**
  * This is the core data structure that this library is built around. The
@@ -50,8 +50,15 @@ export interface CausalGraph {
   /** Current global version frontier */
   heads: LV[]
 
-  /** Map from agent -> list of versions by that agent */
-  agentToVersion: { [k: string]: ClientEntry[]}
+  // /** Map from agent -> list of versions by that agent */
+  // agentToVersion: { [k: string]: ClientEntry[]}
+
+
+  /** Map from agent -> seq -> local version */
+  agentToVersion: {
+    // The IndexedMap maps from seq -> local versions for that agent.
+    [k: string]: IndexedMap[]
+  }
 }
 
 
@@ -105,28 +112,6 @@ export const cgEntryRLE: AllRLEMethods<CGEntry> = {
     item.version += offset
     item.seq += offset
     item.parents = [item.version - 1]
-  }
-}
-
-export const clientEntryRLE: AllRLEMethods<ClientEntry> = {
-  // len(item) { return item.seqEnd - item.seq },
-  keyStart: e => e.seq,
-  keyEnd: e => e.seqEnd,
-  tryAppend(a, b) {
-    const canAppend = b.seq === a.seqEnd
-      && b.version === (a.version + (a.seqEnd - a.seq))
-
-    if (canAppend) {
-      a.seqEnd = b.seqEnd
-    }
-    return canAppend
-  },
-  truncateKeepingLeft(item, offset) {
-    item.seqEnd = item.seq + offset
-  },
-  truncateKeepingRight(item, offset) {
-    item.seq += offset
-    item.version += offset
   }
 }
 

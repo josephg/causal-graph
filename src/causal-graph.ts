@@ -11,10 +11,10 @@
 // on concurrency. (High concurrency = bad compression. Low concurrency = great compression).
 
 // import bs from './binary-search.js'
-import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, ClientEntry, CGEntry, cgEntryRLE, clientEntryRLE, rangeRLE } from './types.js'
+import { LV, LVRange, PubVersion, VersionSummary, CausalGraph, CGEntry, cgEntryRLE, rangeRLE } from './types.js'
 import { diff, findDominators } from './tools.js'
 import { min2, max2, advanceFrontier } from './utils.js'
-import { rleFindEntryOpt, rleInsert, rlePush, rleFindEntry, rleFind, rleIterRangeRaw, rleIterRange } from 'rle-utils'
+import { rleFindEntryOpt, rleInsert, rlePush, rleFindEntry, rleFind, rleIterRangeRaw, rleIterRange, IndexedMap, indexedMapRLE } from 'rle-utils'
 import { mergePartialVersions3, serializeDiff3 } from './serialization.js'
 
 export const createCG = (): CausalGraph => ({
@@ -23,7 +23,7 @@ export const createCG = (): CausalGraph => ({
   agentToVersion: {},
 })
 
-export const clientEntriesForAgent = (causalGraph: CausalGraph, agent: string): ClientEntry[] => (
+export const clientEntriesForAgent = (causalGraph: CausalGraph, agent: string): IndexedMap[] => (
   causalGraph.agentToVersion[agent] ??= []
 )
 
@@ -55,33 +55,33 @@ export const nextSeqForAgent = (cg: CausalGraph, agent: string): number => {
   const entries = cg.agentToVersion[agent]
   return entries == null
     ? 0
-    : entries[entries.length - 1].seqEnd
+    : entries[entries.length - 1].keyEnd
 }
 
-const findClientEntryRaw = (cg: CausalGraph, agent: string, seq: number): ClientEntry | null => {
+const findClientEntryRaw = (cg: CausalGraph, agent: string, seq: number): IndexedMap | null => {
   const av = cg.agentToVersion[agent]
   if (av == null) return null
 
-  return rleFindEntryOpt(av, clientEntryRLE, seq)
+  return rleFindEntryOpt(av, indexedMapRLE, seq)
 }
 
-export const findClientEntry = (cg: CausalGraph, agent: string, seq: number): [ClientEntry, number] | null => {
+export const findClientEntry = (cg: CausalGraph, agent: string, seq: number): [IndexedMap, number] | null => {
   const clientEntry = findClientEntryRaw(cg, agent, seq)
-  return clientEntry == null ? null : [clientEntry, seq - clientEntry.seq]
+  return clientEntry == null ? null : [clientEntry, seq - clientEntry.keyStart]
 
   // Equivalent to:
-  // rleFindEntry(av, clientEntryRLE, seq)
+  // rleFindEntry(av, indexedMapRLE, seq)
 }
 
-export const findClientEntryTrimmed = (cg: CausalGraph, agent: string, seq: number): ClientEntry | null => {
+export const findClientEntryTrimmed = (cg: CausalGraph, agent: string, seq: number): IndexedMap | null => {
   const clientEntry = findClientEntryRaw(cg, agent, seq)
   if (clientEntry == null) return null
 
-  const offset = seq - clientEntry.seq // Not using findClientEntry to avoid an allocation.
+  const offset = seq - clientEntry.keyStart // Not using findClientEntry to avoid an allocation.
   return offset === 0 ? clientEntry : {
-    seq,
-    seqEnd: clientEntry.seqEnd,
-    version: clientEntry.version + offset
+    keyStart: seq,
+    keyEnd: clientEntry.keyEnd,
+    val: clientEntry.val + offset
   }
 }
 
@@ -128,11 +128,11 @@ export const add = (cg: CausalGraph, agent: string, seqStart: number, seqEnd: nu
     // console.log(cg.agentToVersion[agent], seqStart, existingEntry)
     if (existingEntry == null) break // Insert start..end.
 
-    if (existingEntry.seqEnd >= seqEnd) return null // The entire span was already inserted.
+    if (existingEntry.keyEnd >= seqEnd) return null // The entire span was already inserted.
 
     // Or trim and loop.
-    seqStart = existingEntry.seqEnd
-    parents = [existingEntry.version + (existingEntry.seqEnd - existingEntry.seq) - 1]
+    seqStart = existingEntry.keyEnd
+    parents = [existingEntry.val + (existingEntry.keyEnd - existingEntry.keyStart) - 1]
   }
 
   const len = seqEnd - seqStart
@@ -152,8 +152,8 @@ export const add = (cg: CausalGraph, agent: string, seqStart: number, seqEnd: nu
   // the same agent modifies two different branches. Hence, insertRLEList instead of pushRLEList.
   rleInsert(
     clientEntriesForAgent(cg, agent),
-    clientEntryRLE,
-    { seq: seqStart, seqEnd, version },
+    indexedMapRLE,
+    <IndexedMap>{ keyStart: seqStart, keyEnd: seqEnd, val: version },
   )
 
   cg.heads = advanceFrontier(cg.heads, vEnd - 1, parents)
@@ -226,12 +226,12 @@ export const lvListToPub = (cg: CausalGraph, lvList: LV[] = cg.heads): PubVersio
 export const tryPubToLV = (cg: CausalGraph, agent: string, seq: number): LV | null => {
   // This is pretty inefficient.
   const clientEntry = findClientEntryTrimmed(cg, agent, seq)
-  return clientEntry?.version ?? null
+  return clientEntry?.val ?? null
 }
 export const pubToLV = (cg: CausalGraph, agent: string, seq: number): LV => {
   const clientEntry = findClientEntryTrimmed(cg, agent, seq)
   if (clientEntry == null) throw Error(`Unknown ID: (${agent}, ${seq})`)
-  return clientEntry.version
+  return clientEntry.val
 }
 export const pubToLV2 = (cg: CausalGraph, v: PubVersion): LV => (
   pubToLV(cg, v[0], v[1])
@@ -253,7 +253,7 @@ export const pubToLVSpan = (cg: CausalGraph, agent: string, seq: number): [LV, L
   if (e == null) throw Error(`Unknown ID: (${agent}, ${seq})`)
   const [entry, offset] = e
 
-  return [entry.version + offset, entry.seqEnd - entry.seq + entry.version] // [start, end]
+  return [entry.val + offset, entry.keyEnd - entry.keyStart + entry.val] // [start, end]
   // return [entry.version + offset, entry.seqEnd - entry.seq - offset] // [start, len].
 }
 
@@ -269,7 +269,7 @@ export const summarizeVersion = (cg: CausalGraph): VersionSummary => {
 
     const versions: [number, number][] = []
     for (const ce of av) {
-      rlePush(versions, rangeRLE, [ce.seq, ce.seqEnd])
+      rlePush(versions, rangeRLE, [ce.keyStart, ce.keyEnd])
     }
 
     result[k] = versions
@@ -336,20 +336,20 @@ const intersectWithSummaryFull = (cg: CausalGraph, summary: VersionSummary, visi
     const clientEntries = cg.agentToVersion[agent]
 
     for (let [startSeq, endSeq] of summary[agent]) {
-      // This is a bit tricky, because a single item in ClientEntry might span multiple
+      // This is a bit tricky, because a single item in IndexedMap might span multiple
       // entries.
 
       if (clientEntries != null) { // Else no intersection here.
-        for (const ce of rleIterRangeRaw(clientEntries, clientEntryRLE, startSeq, endSeq)) {
-          if (ce.seq > startSeq) {
-            visit(agent, startSeq, ce.seq, -1)
-            startSeq = ce.seq
+        for (const ce of rleIterRangeRaw(clientEntries, indexedMapRLE, startSeq, endSeq)) {
+          if (ce.keyStart > startSeq) {
+            visit(agent, startSeq, ce.keyStart, -1)
+            startSeq = ce.keyStart
           }
 
-          const seqOffset = startSeq - ce.seq
-          const versionStart = ce.version + seqOffset
+          const seqOffset = startSeq - ce.keyStart
+          const versionStart = ce.val + seqOffset
 
-          const localSeqEnd = min2(ce.seqEnd, endSeq)
+          const localSeqEnd = min2(ce.keyEnd, endSeq)
 
           visit(agent, startSeq, localSeqEnd, versionStart)
 

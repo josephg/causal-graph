@@ -1,6 +1,6 @@
 export type {
   PubVersion, LV, LVRange,
-  CGEntry, ClientEntry, CausalGraph,
+  CGEntry, CausalGraph,
 
   VersionSummary,
 } from './types.js'

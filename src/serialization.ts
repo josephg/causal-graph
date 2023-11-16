@@ -3,9 +3,9 @@
 import { addPubVersion, findEntryContaining, lvListToPub, nextLV, pubToLV, pubListToLV, clientEntriesForAgent, createCG, lvToPub, pubToLV2, add } from "./causal-graph.js"
 import { advanceFrontier } from './utils.js'
 import { diff } from "./tools.js"
-import { CGEntry, CausalGraph, LV, LVRange, PubVersion, clientEntryRLE } from "./types.js"
+import { CGEntry, CausalGraph, LV, LVRange, PubVersion } from "./types.js"
 import { min2 } from './utils.js'
-import { rleInsert, binarySearch } from "rle-utils"
+import { rleInsert, binarySearch, indexedMapRLE } from "rle-utils"
 // import binarySearch from './binary-search.js'
 
 // *** Serializing the entire causal graph. When serializing the entire thing, we can save local
@@ -59,11 +59,11 @@ export function fromSerialized(data: SerializedCausalGraphV2): CausalGraph {
 
     rleInsert(
       clientEntriesForAgent(result, e.agent),
-      clientEntryRLE,
+      indexedMapRLE,
       {
-        seq: e.seq,
-        seqEnd: e.seq + e.len,
-        version: v
+        keyStart: e.seq,
+        keyEnd: e.seq + e.len,
+        val: v
       }
     )
 
